@@ -11,12 +11,13 @@ $userName = ($wrapper->getUser())['Username'];
 ?>
 <head>
 
-	<link rel="stylesheet" type="text/css" href="../dist/css/selfSelectedStock.css">
+	
 	<link rel="alternate" type="application/rss+xml" title="RSS 2.0" href="http://www.datatables.net/rss.xml">
 	<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.16/css/jquery.dataTables.min.css">
 	<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/select/1.2.5/css/select.dataTables.min.css">
 	<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/responsive/2.2.2/css/responsive.dataTables.min.css">
 	<link type="text/css" href="//gyrocode.github.io/jquery-datatables-checkboxes/1.2.10/css/dataTables.checkboxes.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="../dist/css/selfSelectedStock.css">
 
 	
 	<script type="text/javascript" src="https://cdn.datatables.net/1.10.8/js/jquery.dataTables.min.js"></script>
@@ -55,19 +56,35 @@ var table, remindTable;
 var stockSet = [], reminderSet = [], supResPrices = [];  
 var stockRef = {};
 
+Date.prototype.yyyymmdd = function() {
+  var mm = this.getMonth() + 1; // getMonth() is zero-based
+  var dd = this.getDate();
+
+  return [this.getFullYear(),
+          (mm>9 ? '' : '0') + mm,
+          (dd>9 ? '' : '0') + dd
+         ].join('');
+};
+
+var date = new Date();
+var dateNumFormat = date.yyyymmdd();
 
 	$(document).on('click', '#rename-group', function(){ 
 		var stockGroup = $('#categories :selected').val();
-		console.log(stockGroup);
+		//console.log(stockGroup);
 		if(stockGroup === "請選自選組合"){
 			alert("請選股票群組");
 			return;
 		}
+		cancelAddGroup();
+		cancelAddStock();
 		$("#rename-group-area").css({'display':'block'});
 
 	});
 
 	$(document).on('click', '#add-group', function(){
+		cancelAddStock();
+		cancelRenameGroup();
 		$("#add-group-area").css({'display':'block'});
 	});
 
@@ -77,6 +94,8 @@ var stockRef = {};
 			alert("請選股票群組");
 			return;
 		}
+		cancelRenameGroup();
+		cancelAddGroup();
 		$("#add-stock-area").css({'display':'block'});
 	});
 
@@ -192,6 +211,7 @@ var stockRef = {};
 	});
 
 	$(document).on('click', '.add-stock-filter-result', function(){
+		//$(this).attr("disabled", "disabled").off('click');
 		var stockSymbol = $(this).attr("id");
 		var groupId = $('#categories :selected').val();
 
@@ -219,7 +239,7 @@ var stockRef = {};
 									"res3":0};
 						supResPrices.push(r);
 						join({symbolId: stockSymbol}, refreshStockData);
-						api.meta({ symbolId: stockSymbol, date:20180615 }).then(function(data){
+						api.meta({ symbolId: stockSymbol, date:20180621 }).then(function(data){
 			    			var element = {};
 			    			var id = data.symbol.id;
 			    			element.symbol = id;
@@ -399,6 +419,7 @@ var stockRef = {};
 
 
 	function addGroup(){
+		$('#add-group-btn').attr('disabled', 'disabled');
 		var groupName = $('#groupName').val();
 		$.ajax({
 			url:"addGroup.php",
@@ -420,6 +441,7 @@ var stockRef = {};
 	}
 
 	function renameGroup(){
+		$('#rename-group-btn').attr('disabled', 'disabled');
 		var groupId = $('#categories :selected').val();
 		var newGroupName = $('#rename-group-text').val();
 
@@ -619,7 +641,7 @@ var stockRef = {};
 								<div class="input-group input-group-sm input-group-bar col-xs-4 col-sm-4 col-md-4 col-lg-3">\
 											<input class="form-control" id = "rename-group-text" type="text" placeholder="更改名稱">\
 											<span class="input-group-btn">\
-												<button type="button" class="btn btn-secondary btn-rename" onclick="renameGroup()">確認</button>\
+												<button id = "rename-group-btn" type="button" class="btn btn-secondary btn-rename" onclick="renameGroup()">確認</button>\
 											</span>\
 											<span class="input-group-btn" onclick="cancelRenameGroup()">\
 												<button class="btn btn-secondary">取消</button>\
@@ -631,7 +653,7 @@ var stockRef = {};
 								<div class="input-group input-group-sm input-group-bar col-xs-4 col-sm-4 col-md-4 col-lg-3">\
 											<input class="form-control" id="groupName" autocomplete="off" placeholder="新增組合名稱" type="text">\
 											<span class="input-group-btn">\
-												<button type="button" class="btn btn-secondary" onclick="addGroup()">新增</button>\
+												<button id = "add-group-btn" type="button" class="btn btn-secondary" onclick="addGroup()">新增</button>\
 											</span>\
 											<span class="input-group-btn" >\
 												<button type="button" class="btn btn-secondary" onclick="cancelAddGroup()">取消</button>\
@@ -781,10 +803,10 @@ function refreshStockData(){
 	checkReminderTable();
 	var t = [];
 	//console.log("ticks");
-	//console.log(ticks);
+	console.log(ticks);
 	//console.log("refresh stockList:" + stockList);
-	console.log("supResPrices");
-	console.log(supResPrices);
+	//console.log("supResPrices");
+	//console.log(supResPrices);
 	for (var key in stockList){
 		if(ticks[stockList[key]] != undefined){
 			if(ticks[stockList[key]].ticks.length > 0){
@@ -910,7 +932,10 @@ function refreshStockData(){
 	}
 	    		
 	if(table){
-		table.ajax.reload(null,false);
+		if(!table.column(0).visible()){
+			table.ajax.reload(null,false);
+		}
+		
 	}else{
 		console.log("table doesn't exist");
 	}
@@ -943,12 +968,12 @@ function checkReminderTable(){
 		}
 	}
 	if(message != ""){
+		console.log(message);
 		Notification.requestPermission().then(function(result) {
 
-		if(window.Notification.permission == "granted") {
-			var notification = new Notification('到價提醒通知', {
-			body: message,
-        });                   
+		if(result == "granted") {
+			var notification = new Notification('到價提醒通知', {body: message});
+
         //setTimeout(function() { notification.close(); }, 5000);
         } else {
             alert('提醒失敗');
@@ -971,16 +996,19 @@ function checkReminderTable(){
 
     const { join, leave, ticks, meta} = socket;
 				    
+
     for(i = 0; i < stockList.length; i++){
     		join({symbolId: stockList[i]}, refreshStockData);
 
-    		api.meta({ symbolId: stockList[i], date:20180615 }).then(function(data){
-    			var element = {};
+    		api.meta({ symbolId: stockList[i]}).then(function(data){
+    			console.log("fuck");
+    			console.log(data);
+    			/*var element = {};
     			var id = data.symbol.id;
     			element.symbol = id;
     			element.ref = data.price.close;
 
-    			stockRef[id] = element;
+    			stockRef[id] = element;*/
     		})
     }
 
